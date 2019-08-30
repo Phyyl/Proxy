@@ -2,6 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Phyyl</Authors>
+    <Company />
+    <Description />
+    <RepositoryUrl>https://github.com/Phyyl/Proxy</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Phyyl/Proxy</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>

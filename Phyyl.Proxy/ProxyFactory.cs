@@ -47,7 +47,7 @@ namespace Phyyl.Proxy
             return typeBuilder.CreateTypeInfo().AsType();
         }
 
-        //TODO: Add indexer
+        //TODO: Add indexer support
         private static void AddInterfaceImplementation(TypeBuilder typeBuilder, Type interfaceType, FieldBuilder handlerFieldBuilder)
         {
             typeBuilder.AddInterfaceImplementation(interfaceType);
