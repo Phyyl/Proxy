@@ -8,6 +8,7 @@
     <Description />
     <RepositoryUrl>https://github.com/Phyyl/Proxy</RepositoryUrl>
     <PackageProjectUrl>https://github.com/Phyyl/Proxy</PackageProjectUrl>
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
