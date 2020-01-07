@@ -1,18 +1,53 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Text;
 
 using static System.Reflection.MethodAttributes;
 using static System.Reflection.Emit.OpCodes;
-using System.Linq;
 
 namespace Phyyl.Proxy
 {
     public static partial class ProxyFactory
     {
-        private static void AddMethodImplementation(TypeBuilder typeBuilder, Type interfaceType, MethodInfo methodInfo, FieldBuilder handlerFieldBuiler)
+        private static readonly Dictionary<Type, OpCode> ldindOpCodes = new Dictionary<Type, OpCode>
+        {
+            [typeof(bool)] = Ldind_U1,
+            [typeof(byte)] = Ldind_U1,
+            [typeof(sbyte)] = Ldind_I1,
+            [typeof(char)] = Ldind_U2,
+            [typeof(ushort)] = Ldind_U2,
+            [typeof(short)] = Ldind_I2,
+            [typeof(uint)] = Ldind_U4,
+            [typeof(int)] = Ldind_I4,
+            [typeof(ulong)] = Ldind_I8,
+            [typeof(long)] = Ldind_I8,
+            [typeof(float)] = Ldind_R4,
+            [typeof(double)] = Ldind_R8,
+            [typeof(IntPtr)] = Ldind_I,
+            [typeof(UIntPtr)] = Ldind_I,
+        };
+
+        private static readonly Dictionary<Type, OpCode> stindOpCodes = new Dictionary<Type, OpCode>
+        {
+            [typeof(bool)] = Stind_I1,
+            [typeof(byte)] = Stind_I1,
+            [typeof(sbyte)] = Stind_I1,
+            [typeof(char)] = Stind_I2,
+            [typeof(ushort)] = Stind_I2,
+            [typeof(short)] = Stind_I2,
+            [typeof(uint)] = Stind_I4,
+            [typeof(int)] = Stind_I4,
+            [typeof(ulong)] = Stind_I8,
+            [typeof(long)] = Stind_I8,
+            [typeof(float)] = Stind_R4,
+            [typeof(double)] = Stind_R8,
+            [typeof(IntPtr)] = Stind_I,
+            [typeof(UIntPtr)] = Stind_I,
+        };
+
+        private static void AddMethodImplementation(TypeBuilder typeBuilder, Type interfaceType, MethodInfo methodInfo, FieldBuilder handlerFieldBuilder)
         {
             string methodName = $"{interfaceType.Name}.{methodInfo.Name}";
 
@@ -23,15 +58,12 @@ namespace Phyyl.Proxy
             for (int i = 0; i < parameters.Length; i++)
             {
                 ParameterInfo parameter = parameters[i];
-
                 methodBuilder.DefineParameter(i + 1, parameter.Attributes, parameter.Name);
             }
 
-            IILGenerator il = new DefaultILGenerator(methodBuilder.GetILGenerator());
-
+            IILGenerator il = CreateILGenerator(methodBuilder.GetILGenerator());
             LocalBuilder parametersLocal = il.DeclareLocal(typeof(object[]));
             LocalBuilder resultLocal = il.DeclareLocal(typeof(object));
-
             bool hasReturnValue = methodInfo.ReturnType == typeof(void);
             int parametersLocalLength = parameters.Length;
 
@@ -58,52 +90,13 @@ namespace Phyyl.Proxy
                     {
                         il.Emit(Ldind_Ref);
                     }
+                    else if (ldindOpCodes.TryGetValue(elementType, out var opCode))
+                    {
+                        il.Emit(opCode);
+                    }
                     else
                     {
-                        switch (elementType.FullName)
-                        {
-                            case "System.Boolean":
-                            case "System.Byte":
-                                il.Emit(Ldind_U1);
-                                break;
-                            case "System.SByte":
-                                il.Emit(Ldind_I1);
-                                break;
-                            case "System.Char":
-                                il.Emit(Ldind_U2);
-                                break;
-                            case "System.Int16":
-                                il.Emit(Ldind_I2);
-                                break;
-                            case "System.UInt16":
-                                il.Emit(Ldind_U2);
-                                break;
-                            case "System.Int32":
-                                il.Emit(Ldind_I4);
-                                break;
-                            case "System.UInt32":
-                                il.Emit(Ldind_U4);
-                                break;
-                            case "System.Int64":
-                            case "System.UInt64":
-                                il.Emit(Ldind_I8);
-                                break;
-                            case "System.Double":
-                                il.Emit(Ldind_R8);
-                                break;
-                            case "System.Single":
-                                il.Emit(Ldind_R4);
-                                break;
-                            case "System.UIntPtr":
-                            case "System.IntPtr":
-                                il.Emit(Ldind_I);
-                                break;
-                            default:
-                                il.Emit(Ldobj, elementType);
-                                break;
-                        }
-
-                        il.Emit(Box, elementType);
+                        il.Emit(Ldobj, elementType);
                     }
                 }
                 else if (!parameterTypeInfo.IsClass)
@@ -115,7 +108,7 @@ namespace Phyyl.Proxy
             }
 
             il.Emit(Ldarg_0);
-            il.Emit(Ldfld, handlerFieldBuiler);
+            il.Emit(Ldfld, handlerFieldBuilder);
             il.Emit(Call, typeof(MethodBase).GetMethod(nameof(MethodBase.GetCurrentMethod)));
             il.Emit(Ldloc, parametersLocal);
             il.Emit(Callvirt, typeof(IProxyHandler).GetMethod(nameof(IProxyHandler.HandleMethod)));
@@ -146,39 +139,13 @@ namespace Phyyl.Proxy
                     {
                         il.Emit(Unbox_Any, elementType);
 
-                        switch (elementType.FullName)
+                        if (stindOpCodes.TryGetValue(elementType, out var opCode))
                         {
-                            case "System.Boolean":
-                            case "System.Byte":
-                            case "System.SByte":
-                                il.Emit(Stind_I1);
-                                break;
-                            case "System.Char":
-                            case "System.Int16":
-                            case "System.UInt16":
-                                il.Emit(Stind_I2);
-                                break;
-                            case "System.Int32":
-                            case "System.UInt32":
-                                il.Emit(Stind_I4);
-                                break;
-                            case "System.Int64":
-                            case "System.UInt64":
-                                il.Emit(Stind_I8);
-                                break;
-                            case "System.Double":
-                                il.Emit(Stind_R8);
-                                break;
-                            case "System.Single":
-                                il.Emit(Stind_R4);
-                                break;
-                            case "System.UIntPtr":
-                            case "System.IntPtr":
-                                il.Emit(Stind_I);
-                                break;
-                            default:
-                                il.Emit(Stobj, elementType);
-                                break;
+                            il.Emit(opCode);
+                        }
+                        else
+                        {
+                            il.Emit(Stobj, elementType);
                         }
                     }
                 }
@@ -197,6 +164,15 @@ namespace Phyyl.Proxy
             il.Emit(Ret);
 
             typeBuilder.DefineMethodOverride(methodBuilder, methodInfo);
+        }
+
+        private static IILGenerator CreateILGenerator(ILGenerator ilGenerator)
+        {
+#if DEBUG
+            return new DebuggableILGenerator(ilGenerator);
+#else
+            return new DefaultILGenerator(ilGenerator);
+#endif
         }
     }
 }

@@ -8,6 +8,6 @@ namespace Phyyl.Proxy
 {
     public interface IProxyHandler
     {
-        object HandleMethod(MethodBase methodBase, object[] parameters);
+        object HandleMethod(Type interfaceType, MethodBase methodBase, object[] parameters);
     }
 }
